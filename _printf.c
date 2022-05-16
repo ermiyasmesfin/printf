@@ -1,92 +1,199 @@
-#include "main.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include "main.h"
 
 /**
- * printIdentifiers - prints special characters
- * @next: character after the %
- * @arg: argument for the indentifier
- * Return: the number of characters printed
- * (excluding the null byte used to end output to strings)
+ * _strlen - prints numbers, followed by a new line
+ * @s: is the string to be printed between numbers
+ * @flag: is a flag that checks if there is a percentage
+ *        entry after the specifier
+ * Return: returns length of the string
  */
 
-int printIdentifiers(char next, va_list arg)
+int _strlen(const char *s, int flag)
 {
-	int functsIndex;
+	int length;
 
-	identifierStruct functs[] = {
-		{"c", print_char},
-		{"s", print_str},
-		{"d", print_int},
-		{"i", print_int},
-		{"u", print_unsigned},
-		{"b", print_unsignedToBinary},
-		{"o", print_oct},
-		{"x", print_hex},
-		{"X", print_HEX},
-		{"S", print_STR},
-		{NULL, NULL}
-	};
+	for (length = 0; *s != '\0'; s++)
+		length++;
 
-	for (functsIndex = 0; functs[functsIndex].indentifier != NULL; functsIndex++)
+	if (flag)
 	{
-		if (functs[functsIndex].indentifier[0] == next)
-			return (functs[functsIndex].printer(arg));
+		return (length - 1);
 	}
-	return (0);
+	else
+	{
+		return (length);
+	}
 }
 
 /**
- * _printf - mimic printf from stdio
- * Description: produces output according to a format
- * write output to stdout, the standard output stream
- * @format: character string composed of zero or more directives
- *
+ * unsigned_integer_to_string - changes the unsigned integer to string
+ * @integer: integer number
+ * @base: takes in the desired base to print with
+ * @capitalflag: is a flag that checks if there is a capital charachter
+ * @buffer: charachter array
+ * Return: returns nothing
+ */
+
+void unsigned_integer_to_string(uint64_t integer, int base,
+				 int capitalflag, char *buffer)
+{
+	int i, digit, cur = 0;
+	char _buffer[65];
+
+	if (integer == 0)
+	{
+		*buffer++ = '0';
+		*buffer = 0;
+		return;
+	}
+	for (i = 0; i < 65; i++)
+		_buffer[i] = 0;
+	while (integer)
+	{
+		digit = integer % base;
+		if (digit >= 10 && capitalflag == 0)
+		{
+			_buffer[cur++] = 'a' + (digit - 10);
+		}
+		else if (digit >= 10 && capitalflag == 1)
+		{
+			_buffer[cur++] = 'A' + (digit - 10);
+		}
+		else
+		{
+			_buffer[cur++] = '0' + digit;
+		}
+
+		integer /= base;
+	}
+	for (i = cur - 1; i != 0; i--)
+		*buffer++ = _buffer[i];
+	*buffer++ = _buffer[0];
+	*buffer = 0;
+}
+
+/**
+ * signed_integer_to_string - changes the signed integer to string
+ * @integer: integer number
+ * @base: takes in the desired base to print with
+ * @capitalflag: is a flag that checks if there is a capital charachter
+ * @buffer: charachter array
+ * Return: returns nothing
+ */
+
+void signed_integer_to_string(int64_t integer, int base,
+			       int capitalflag, char *buffer)
+{
+	if (integer < 0)
+	{
+		*buffer++ = '-';
+		integer = -integer;
+	}
+
+	unsigned_integer_to_string(integer, base, capitalflag, buffer);
+}
+
+/**
+ * v_printf - prints input charachter
+ * @format: is a character string
+ * @args: takes in list of arguments
+ * Return: returns nothing
+ */
+
+/*State: 0: regular 1: escape*/
+
+void v_printf(const char *format, va_list args)
+{
+	int state = 0;
+	char ch;
+	const char *s;
+
+	while (*format)
+	{
+		if (state == 0)
+		{
+			if (*format == '%')
+				state = 1;
+			else
+				putchar(*format);
+		}
+		else if (state == 1)
+		{
+			switch (*format)
+			{
+			case 'c':
+				ch = va_arg(args, int);
+				putchar(ch);
+				break;
+			case 's':
+			{
+				s = va_arg(args, const char *);
+				while (*s)
+				{
+					putchar(*s++);
+				}
+				break;
+			}
+			case '%':
+			{
+				putchar('%');
+				break;
+			}
+		    state = 0;
+		}
+		format++;
+	}
+}
+
+/**
+ * _printf - produces output according to a format
+ * @format: is a character string
  * Return: the number of characters printed
- * (excluding the null byte used to end output to strings)
- * return -1 for incomplete identifier error
+ *         (excluding the null byte used to end output to strings)
  */
 
 int _printf(const char *format, ...)
 {
-	unsigned int i;
-	int identifierPrinted = 0, charPrinted = 0;
-	va_list arg;
+	int noSpecifier = 1, isPercentage = 0;
+	const char *s = format, *s1 = format;
+	va_list args;
 
-	va_start(arg, format);
-	if (format == NULL)
-		return (-1);
-
-	for (i = 0; format[i] != '\0'; i++)
+	while (*s1)
 	{
-		if (format[i] != '%')
+		if (*s1 == '%')
 		{
-			_putchar(format[i]);
-			charPrinted++;
-			continue;
+			noSpecifier = 0;
+			break;
 		}
-		if (format[i + 1] == '%')
-		{
-			_putchar('%');
-			charPrinted++;
-			i++;
-			continue;
-		}
-		if (format[i + 1] == '\0')
-			return (-1);
-
-		identifierPrinted = printIdentifiers(format[i + 1], arg);
-		if (identifierPrinted == -1 || identifierPrinted != 0)
-			i++;
-		if (identifierPrinted > 0)
-			charPrinted += identifierPrinted;
-
-		if (identifierPrinted == 0)
-		{
-			_putchar('%');
-			charPrinted++;
-		}
+		s1++;
 	}
-	va_end(arg);
-	return (charPrinted);
+	while (*s1)
+	{
+		if (*s1 == '%' && *(s1 + 1) == '%')
+			isPercentage = 1;
+		s1++;
+	}
+	va_start(args, format);
+	if (!noSpecifier)
+	{
+		v_printf(format, args);
+	}
+	else
+	{
+		while (*s)
+		{
+			putchar(*s);
+			s++;
+		}
+		_strlen(format, isPercentage);
+	}
+	if (isPercentage == 1)
+		_strlen(format, isPercentage);
+
+	va_end(args);
+
+	return (_strlen(format, isPercentage));
 }
